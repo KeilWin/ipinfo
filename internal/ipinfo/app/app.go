@@ -7,25 +7,51 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/cache"
+	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/database"
 	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
 )
 
+type ExitCodeType int
+
+const (
+	ExitSuccess ExitCodeType = 0
+	ExitError   ExitCodeType = -1
+)
+
+func CheckIpInfoAppFatalError(err error) {
+	if err != nil {
+		slog.Error("app fatal error", "error", err)
+		os.Exit(int(ExitError))
+	}
+}
+
 type IpInfoApp struct {
-	cfg     *IpInfoAppConfig
-	logger  *slog.Logger
-	handler *http.ServeMux
-	server  *http.Server
+	cfg      *IpInfoAppConfig
+	logger   *slog.Logger
+	handler  *http.ServeMux
+	server   *http.Server
+	database database.Database
+	cache    cache.Cache
 }
 
 func (p *IpInfoApp) ShutDownHandler() {
 	shutDownSignal := make(chan os.Signal, 1)
 	signal.Notify(shutDownSignal, syscall.SIGINT, syscall.SIGTERM)
+
 	sig := <-shutDownSignal
 	slog.Info("received signal to term", "sig", sig)
-	os.Exit(0)
+
+	go p.cache.ShutDown()
+	go p.database.ShutDown()
+
+	os.Exit(int(ExitSuccess))
 }
 
 func (p *IpInfoApp) Start() {
+	go p.database.StartUp()
+	go p.cache.StartUp()
+
 	go p.ShutDownHandler()
 
 	switch p.cfg.Protocol {
@@ -44,11 +70,17 @@ func newIpInfoApp(appCfg *IpInfoAppConfig) *IpInfoApp {
 	logger := NewAppLogger(appCfg)
 	handler := handler.NewAppHandler(&appCfg.HandlerConfig)
 	server := NewAppServer(handler, appCfg)
+	database, err := database.NewDatabase(appCfg.DatabaseType)
+	CheckIpInfoAppFatalError(err)
+	cache, err := cache.NewCache(appCfg.CacheType)
+	CheckIpInfoAppFatalError(err)
 	return &IpInfoApp{
-		cfg:     appCfg,
-		logger:  logger,
-		handler: handler,
-		server:  server,
+		cfg:      appCfg,
+		logger:   logger,
+		handler:  handler,
+		server:   server,
+		database: database,
+		cache:    cache,
 	}
 }
 

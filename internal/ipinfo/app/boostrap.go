@@ -10,6 +10,8 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/cache"
+	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/database"
 	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
 )
 
@@ -35,6 +37,9 @@ type IpInfoAppConfig struct {
 	KeyFile  string
 
 	HandlerConfig handler.AppHandlerConfig
+
+	CacheType    cache.CacheType
+	DatabaseType database.DatabaseType
 }
 
 func dotEnvFilename() string {
@@ -90,6 +95,9 @@ func loadConfig() *IpInfoAppConfig {
 
 	baseApiPath := os.Getenv("IPINFO_BASE_API_PATH")
 
+	cacheType := cache.CacheType(os.Getenv("IPINFO_CACHE_TYPE"))
+	databaseType := database.DatabaseType(os.Getenv("IPINFO_DATABASE_TYPE"))
+
 	return &IpInfoAppConfig{
 		Addr:     addr,
 		Protocol: protocol,
@@ -106,6 +114,9 @@ func loadConfig() *IpInfoAppConfig {
 		HandlerConfig: handler.AppHandlerConfig{
 			BaseApiPath: baseApiPath,
 		},
+
+		CacheType:    cacheType,
+		DatabaseType: databaseType,
 	}
 }
 
