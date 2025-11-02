@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
 )
 
 type IpInfoApp struct {
@@ -40,7 +42,7 @@ func (p *IpInfoApp) Start() {
 
 func newIpInfoApp(appCfg *IpInfoAppConfig) *IpInfoApp {
 	logger := NewAppLogger(appCfg)
-	handler := NewAppHandler(appCfg)
+	handler := handler.NewAppHandler(&appCfg.HandlerConfig)
 	server := NewAppServer(handler, appCfg)
 	return &IpInfoApp{
 		cfg:     appCfg,

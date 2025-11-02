@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+
+	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
 )
 
 const AppName = "ipinfo"
@@ -31,6 +33,8 @@ type IpInfoAppConfig struct {
 
 	CertFile string
 	KeyFile  string
+
+	HandlerConfig handler.AppHandlerConfig
 }
 
 func dotEnvFilename() string {
@@ -84,6 +88,8 @@ func loadConfig() *IpInfoAppConfig {
 	certFile := os.Getenv("IPINFO_CERT_FILE")
 	keyFile := os.Getenv("IPINFO_KEY_FILE")
 
+	baseApiPath := os.Getenv("IPINFO_BASE_API_PATH")
+
 	return &IpInfoAppConfig{
 		Addr:     addr,
 		Protocol: protocol,
@@ -96,6 +102,10 @@ func loadConfig() *IpInfoAppConfig {
 
 		CertFile: certFile,
 		KeyFile:  keyFile,
+
+		HandlerConfig: handler.AppHandlerConfig{
+			BaseApiPath: baseApiPath,
+		},
 	}
 }
 
