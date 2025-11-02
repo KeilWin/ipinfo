@@ -2,6 +2,7 @@
 
 PROJECT_NAME="ipinfo"
 
+
 mkdir -p bin
 mkdir -p bin/ssl
 mkdir -p bin/logs

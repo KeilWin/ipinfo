@@ -1,6 +1,7 @@
 package app
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -42,7 +43,11 @@ func setBootstrapLogger() {
 }
 
 func loadConfig() *IpInfoAppConfig {
-	envFile := dotEnvFilename()
+	var envFile string
+	flag.StringVar(&envFile, "env", dotEnvFilename(), "Environment filepath")
+	flag.StringVar(&envFile, "e", dotEnvFilename(), "Environment filepath")
+	flag.Parse()
+
 	err := godotenv.Load(envFile)
 	if err != nil {
 		slog.Error("can't load env file", "file", envFile, "error", err)
