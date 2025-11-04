@@ -1,19 +1,38 @@
-package domain
+package entity
 
-type IpAddressVersion string
+type IpAddressVersionType string
+type RirType string
+type StatusType string
 
 const (
-	IpAddressV4 IpAddressVersion = "ipv4"
-	IpAddressV6 IpAddressVersion = "ipv6"
+	IpAddressV4 IpAddressVersionType = "ipv4"
+	IpAddressV6 IpAddressVersionType = "ipv6"
+)
+
+const (
+	Apnic   RirType = "apnic"
+	Arin    RirType = "arin"
+	Iana    RirType = "iana"
+	Lacnic  RirType = "lacnic"
+	Ripencc RirType = "ripencc"
+)
+
+const (
+	Allocated StatusType = "allocated"
+	Assigned  StatusType = "assigned"
 )
 
 type IpAddress struct {
+	Rir     RirType
+	Country string
+	Value   string
+	Start   string
+	Count   string
+	Version IpAddressVersionType
+	Date    string
+	Status  StatusType
 }
 
-func (p *IpAddress) ParseRow() {
-
-}
-
-func (p *IpAddress) CheckValid() {
-
+func NewIpAddress() *IpAddress {
+	return &IpAddress{}
 }

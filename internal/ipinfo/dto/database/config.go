@@ -25,6 +25,8 @@ type DatabaseConfig struct {
 
 	BasePrefix string
 
+	Host     string
+	Port     int
 	Type     DatabaseType
 	User     string
 	Password string
@@ -44,6 +46,11 @@ func (p *DatabaseConfig) Load() error {
 	var err error
 	var hasError bool
 
+	hostName := p.NewVariableName("HOST")
+	p.Host = os.Getenv(hostName)
+	portName := p.NewVariableName("PORT")
+	p.Port, err = strconv.Atoi(os.Getenv(portName))
+	hasError = CheckLoadDatabaseConfigError(err, portName)
 	typeName := p.NewVariableName("TYPE")
 	p.Type = DatabaseType(os.Getenv(typeName))
 	userName := p.NewVariableName("USER")

@@ -10,13 +10,13 @@ import (
 type Database interface {
 	common.Storage
 
-	GetIpInfo(ipAddress string)
+	GetIpInfo(ipAddress string) string
 }
 
 func NewDatabase(databaseConfig *DatabaseConfig) (Database, error) {
 	switch databaseConfig.Type {
 	case PostgreSqlDatabaseType:
-		return NewPostgreSqlDatabase(), nil
+		return NewPostgreSqlDatabase(databaseConfig), nil
 	case ClickHouseDatabaseType:
 		return nil, errors.New("clickhouse not implemented")
 	default:

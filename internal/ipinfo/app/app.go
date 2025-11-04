@@ -1,12 +1,15 @@
 package app
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
+	"github.com/KeilWin/ipinfo/internal/ipinfo/dao"
 	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/cache"
 	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/database"
 	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
@@ -29,38 +32,55 @@ func (p *IpInfoApp) ShutDownHandler() {
 	sig := <-shutDownSignal
 	slog.Info("received signal to term", "sig", sig)
 
-	go p.cache.ShutDown()
-	go p.database.ShutDown()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		p.cache.ShutDown()
+	}()
+	go func() {
+		defer wg.Done()
+		p.database.ShutDown()
+	}()
+	wg.Wait()
 
 	os.Exit(int(utils.ExitSuccess))
 }
 
-func (p *IpInfoApp) Start() {
-	go p.database.StartUp()
-	go p.cache.StartUp()
+func (p *IpInfoApp) Start() error {
+	slog.Info("app starting...")
+
+	if err := p.database.StartUp(); err != nil {
+		return err
+	}
+	if err := p.cache.StartUp(); err != nil {
+		p.database.ShutDown()
+		return err
+	}
 
 	go p.ShutDownHandler()
 
 	switch p.cfg.Protocol() {
 	case ProtocolHTTP:
-		slog.Info("starting server", slog.String("server_protocol", string(p.cfg.Protocol())))
-		slog.Error("server error", "error", p.server.ListenAndServe())
+		slog.Info("starting server", "server_protocol", p.cfg.Protocol())
+		return p.server.ListenAndServe()
 	case ProtocolHTTPS:
-		slog.Info("starting server", slog.String("server_protocol", string(p.cfg.Protocol())))
-		slog.Error("server error", "error", p.server.ListenAndServeTLS(p.cfg.CertFile(), p.cfg.KeyFile()))
+		slog.Info("starting server", "server_protocol", p.cfg.Protocol())
+		return p.server.ListenAndServeTLS(p.cfg.CertFile(), p.cfg.KeyFile())
 	default:
-		slog.Error("protocol not supported", slog.String("server_protocol", string(p.cfg.Protocol())))
+		return fmt.Errorf("protocol not supported: %s", p.cfg.Protocol())
 	}
 }
 
-func newIpInfoApp(appCfg *IpInfoAppConfig) *IpInfoApp {
+func NewIpInfoApp(appCfg *IpInfoAppConfig) *IpInfoApp {
 	logger := NewAppLogger(appCfg)
-	handler := handler.NewAppHandler(appCfg.Handler)
-	server := NewAppServer(handler, appCfg.Server)
 	database, err := database.NewDatabase(appCfg.Database)
 	utils.CheckAppFatalError(err)
 	cache, err := cache.NewCache(appCfg.Cache)
 	utils.CheckAppFatalError(err)
+	repository := dao.NewIpAddress(database)
+	handler := handler.NewAppHandler(appCfg.Handler, repository)
+	server := NewAppServer(handler, appCfg.Server)
 	return &IpInfoApp{
 		cfg:      appCfg,
 		logger:   logger,
@@ -79,7 +99,6 @@ func Start() {
 	}()
 	appCfg, err := bootstrap()
 	utils.CheckAppFatalError(err)
-	ipInfoApp := newIpInfoApp(appCfg)
-	slog.Info("create app", "status", "ok")
-	ipInfoApp.Start()
+	ipInfoApp := NewIpInfoApp(appCfg)
+	utils.CheckAppFatalError(ipInfoApp.Start())
 }

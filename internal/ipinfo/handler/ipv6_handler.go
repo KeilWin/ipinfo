@@ -1,9 +1,15 @@
 package handler
 
-import "net/http"
+import (
+	"net/http"
 
-func NewIpV6Handler() http.HandlerFunc {
+	"github.com/KeilWin/ipinfo/internal/ipinfo/service"
+)
+
+func NewIpV6Handler(service service.IpAddressService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte{'i', 'p', 'v', '6'})
+		ipAddressFromPath := r.PathValue("ipAddress")
+		ipAddressInfo := service.GetIpAddress(ipAddressFromPath)
+		w.Write([]byte(ipAddressInfo.Value))
 	}
 }

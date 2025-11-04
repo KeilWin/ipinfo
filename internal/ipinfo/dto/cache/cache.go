@@ -25,7 +25,7 @@ type Cache interface {
 func NewCache(cacheConfig *CacheConfig) (Cache, error) {
 	switch cacheConfig.Type {
 	case ValkeyCacheType:
-		return NewValkeyCache(), nil
+		return NewValkeyCache(cacheConfig), nil
 	case RedisCacheType:
 		return nil, errors.New("redis not implemented")
 	default:
