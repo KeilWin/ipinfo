@@ -3,6 +3,8 @@ package cache
 import (
 	"errors"
 	"fmt"
+
+	"github.com/KeilWin/ipinfo/internal/common"
 )
 
 type CacheType string
@@ -13,21 +15,20 @@ const (
 )
 
 type Cache interface {
-	StartUp()
-	ShutDown()
+	common.Storage
 
 	AddIpInfo()
 
 	GetIpInfo(ipAddress string)
 }
 
-func NewCache(cacheType CacheType) (Cache, error) {
-	switch cacheType {
+func NewCache(cacheConfig *CacheConfig) (Cache, error) {
+	switch cacheConfig.Type {
 	case ValkeyCacheType:
 		return NewValkeyCache(), nil
 	case RedisCacheType:
 		return nil, errors.New("redis not implemented")
 	default:
-		return nil, fmt.Errorf("unknown cache type: %s", cacheType)
+		return nil, fmt.Errorf("unknown cache type: %s", cacheConfig.Type)
 	}
 }
