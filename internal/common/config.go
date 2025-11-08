@@ -1,9 +1,19 @@
-package app
+package common
 
 import (
 	"crypto/tls"
-	"net/http"
+	"fmt"
 )
+
+type Config interface {
+	Load() error
+	Check() error
+	NewVariableName(name string) string
+}
+
+func NewBasePrefix(appPrefix string, componentPrefix string) string {
+	return fmt.Sprintf("%s_%s", appPrefix, componentPrefix)
+}
 
 func NewCipherSuites() []uint16 {
 	return []uint16{
@@ -41,19 +51,8 @@ func NewTlsConfig() *tls.Config {
 		SessionTicketsDisabled: false,
 		Renegotiation:          tls.RenegotiateNever,
 
-		NextProtos: NewNextProtos(),
-	}
-}
+		InsecureSkipVerify: true,
 
-func NewAppServer(handler *http.ServeMux, appCfg *IpInfoAppConfig) *http.Server {
-	return &http.Server{
-		Addr:              appCfg.Addr,
-		Handler:           handler,
-		TLSConfig:         NewTlsConfig(),
-		MaxHeaderBytes:    appCfg.MaxHeaderBytes,
-		ReadTimeout:       appCfg.ReadTimeout,
-		ReadHeaderTimeout: appCfg.ReadHeaderTimeout,
-		WriteTimeout:      appCfg.WriteTimeout,
-		IdleTimeout:       appCfg.IdleTimeout,
+		NextProtos: NewNextProtos(),
 	}
 }

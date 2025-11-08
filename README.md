@@ -8,8 +8,9 @@ Service provide:
 
 ## Run service
 ```
-make install
+make init
 make build
+make run
 ```
 
 ## Using
@@ -116,22 +117,22 @@ Some info from README
                 this range. This count does not have to represent a
                 CIDR range.
 
-                In the case of an IPv6 address the value will be
-                the CIDR prefix length from the 'first address'
-                value of <start>.
-                In the case of records of type 'asn' the number is
-                the count of AS from this start value.
+        In the case of an IPv6 address the value will be
+        the CIDR prefix length from the 'first address'
+        value of <start>.
+        In the case of records of type 'asn' the number is
+        the count of AS from this start value.
 
     - __date__ = Date on this allocation/assignment was made by the
                 RIR in the format YYYYMMDD;
 
-                Where the allocation or assignment has been
-                transferred from another registry, this date
-                represents the date of first assignment or allocation
-                as received in from the original RIR.
+        Where the allocation or assignment has been
+        transferred from another registry, this date
+        represents the date of first assignment or allocation
+        as received in from the original RIR.
 
-                It is noted that where records do not show a date of
-                first assignment, this can take the 00000000 value.
+        It is noted that where records do not show a date of
+        first assignment, this can take the 00000000 value.
 
     - __status__ = Type of allocation from the set: `{allocated, assigned}`
 
@@ -142,9 +143,11 @@ Some info from README
     - __extensions__ = Any extra data on a line is undefined, but should conform to use of the field separator used above.
 
 ## Preferences
+
 Databases:
 - ClickHouse
 - PostgreSQL
+
 Cache:
 - Valkey
 - Redis
