@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/KeilWin/ipinfo/internal/ipinfo/service"
+	"github.com/KeilWin/ipinfo/internal/service"
 )
 
 func NewIpV4Handler(service service.IpAddressService) http.HandlerFunc {

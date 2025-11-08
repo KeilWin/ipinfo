@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dao"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/entity"
+	"github.com/KeilWin/ipinfo/internal/dao"
+	"github.com/KeilWin/ipinfo/internal/entity"
 )
 
 type IpAddressService interface {

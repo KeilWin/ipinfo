@@ -9,10 +9,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dao"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/cache"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/database"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
+	"github.com/KeilWin/ipinfo/internal/dao"
+	"github.com/KeilWin/ipinfo/internal/dto/cache"
+	"github.com/KeilWin/ipinfo/internal/dto/database"
+	"github.com/KeilWin/ipinfo/internal/handler"
+	"github.com/KeilWin/ipinfo/internal/logger"
 	"github.com/KeilWin/ipinfo/internal/utils"
 )
 
@@ -72,8 +73,8 @@ func (p *IpInfoApp) Start() error {
 	}
 }
 
-func NewIpInfoApp(appCfg *IpInfoAppConfig) *IpInfoApp {
-	logger := NewAppLogger(appCfg)
+func NewApp(appCfg *IpInfoAppConfig) *IpInfoApp {
+	logger := logger.NewAppLogger(appCfg.Logger)
 	database, err := database.NewDatabase(appCfg.Database)
 	utils.CheckAppFatalError(err)
 	cache, err := cache.NewCache(appCfg.Cache)
@@ -97,8 +98,8 @@ func Start() {
 			slog.Error("app fatal error", "panic", r)
 		}
 	}()
-	appCfg, err := bootstrap()
+	cfg, err := bootstrap()
 	utils.CheckAppFatalError(err)
-	ipInfoApp := NewIpInfoApp(appCfg)
-	utils.CheckAppFatalError(ipInfoApp.Start())
+	app := NewApp(cfg)
+	utils.CheckAppFatalError(app.Start())
 }

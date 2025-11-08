@@ -1,8 +1,8 @@
 package dao
 
 import (
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/database"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/entity"
+	"github.com/KeilWin/ipinfo/internal/dto/database"
+	"github.com/KeilWin/ipinfo/internal/entity"
 )
 
 type IpAddressRepository interface {

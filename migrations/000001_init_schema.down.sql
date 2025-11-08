@@ -1,0 +1,7 @@
+DROP VIEW IF EXISTS ip_ranges;
+DROP TABLE IF EXISTS ip_ranges_a;
+DROP TABLE IF EXISTS ip_ranges_b;
+DROP TABLE IF EXISTS ip_range_statuses;
+DROP TABLE IF EXISTS ip_versions;
+DROP TABLE IF EXISTS rirs;
+DROP TABLE IF EXISTS options;

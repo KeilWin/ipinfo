@@ -1,7 +1,7 @@
 package main
 
 import (
-	app "github.com/KeilWin/ipinfo/internal/ipinfo/app"
+	app "github.com/KeilWin/ipinfo/internal/ipinfo"
 )
 
 func main() {

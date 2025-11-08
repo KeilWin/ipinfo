@@ -6,9 +6,10 @@ import (
 	"strings"
 
 	"github.com/KeilWin/ipinfo/internal/common"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/cache"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dto/database"
-	"github.com/KeilWin/ipinfo/internal/ipinfo/handler"
+	"github.com/KeilWin/ipinfo/internal/dto/cache"
+	"github.com/KeilWin/ipinfo/internal/dto/database"
+	"github.com/KeilWin/ipinfo/internal/handler"
+	"github.com/KeilWin/ipinfo/internal/logger"
 )
 
 const AppName = "IPINFO"
@@ -20,6 +21,7 @@ func dotEnvFilename() string {
 type IpInfoAppConfig struct {
 	common.Config
 	BasePrefix string
+	Logger     *logger.LoggerConfig
 	Server     *ServerConfig
 	Handler    *handler.HandlerConfig
 	Cache      *cache.CacheConfig
@@ -27,14 +29,14 @@ type IpInfoAppConfig struct {
 }
 
 func (p *IpInfoAppConfig) Load() error {
-	if p.Server.Load() != nil || p.Handler.Load() != nil || p.Cache.Load() != nil || p.Database.Load() != nil {
+	if p.Server.Load() != nil || p.Handler.Load() != nil || p.Cache.Load() != nil || p.Database.Load() != nil || p.Logger.Load() != nil {
 		return errors.New("loading app config")
 	}
 	return nil
 }
 
 func (p *IpInfoAppConfig) Check() error {
-	if p.Server.Check() != nil || p.Handler.Check() != nil || p.Cache.Check() != nil || p.Database.Check() != nil {
+	if p.Server.Check() != nil || p.Handler.Check() != nil || p.Cache.Check() != nil || p.Database.Check() != nil || p.Logger.Check() != nil {
 		return errors.New("checking app config")
 	}
 	return nil
@@ -55,6 +57,7 @@ func (p *IpInfoAppConfig) KeyFile() string {
 func NewIpInfoAppConfig() *IpInfoAppConfig {
 	return &IpInfoAppConfig{
 		BasePrefix: AppName,
+		Logger:     logger.NewLoggerConfig(),
 		Server:     NewServerConfig(AppName),
 		Handler:    handler.NewHandlerConfig(AppName),
 		Cache:      cache.NewCacheConfig(AppName),

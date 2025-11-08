@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/KeilWin/ipinfo/internal/ipinfo/dao"
+	"github.com/KeilWin/ipinfo/internal/dao"
 )
 
 func initHandler(handler *http.ServeMux, handlerConfig *HandlerConfig, repository dao.IpAddressRepository) {
