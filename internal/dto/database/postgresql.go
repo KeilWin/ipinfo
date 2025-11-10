@@ -91,13 +91,13 @@ func (p *PostgreSqlDatabase) CopyToIpRangesFromArray(table string, ip_ranges []c
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(pq.CopyIn(table, "rir", "country_code", "version_ip", "start_ip", "end_ip", "status", "created_at"))
+	stmt, err := tx.Prepare(pq.CopyIn(table, "rir", "country_code", "version_ip", "start_ip", "end_ip", "quantity", "status", "created_at"))
 	if err != nil {
 		return fmt.Errorf("prepare: %w", err)
 	}
 
 	for i, ip_range := range ip_ranges {
-		_, err = stmt.Exec(ip_range.Rir, ip_range.CountryCode, ip_range.VersionIp, ip_range.StartIp, ip_range.EndIp, ip_range.Status, ip_range.CreatedAt)
+		_, err = stmt.Exec(ip_range.Rir, ip_range.CountryCode, ip_range.VersionIp, ip_range.StartIp, ip_range.EndIp, ip_range.Quantity, ip_range.Status, ip_range.CreatedAt)
 		if err != nil {
 			return fmt.Errorf("exec[%d] = '%v': %w", i, ip_range, err)
 		}

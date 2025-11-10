@@ -15,14 +15,6 @@ import (
 	"github.com/KeilWin/ipinfo/internal/utils"
 )
 
-var Rirs = []string{
-	"apnic",
-	// "arin",
-	// "iana",
-	// "lacnic",
-	// "ripencc",
-}
-
 type IpInfoUpdaterApp struct {
 	common.App
 
@@ -91,16 +83,16 @@ func (p *IpInfoUpdaterApp) Update() error {
 	// }
 
 	wg.Add(len(Rirs))
-	for _, rirName := range Rirs {
+	for _, rir := range Rirs {
 		go func() {
 			defer func() {
-				slog.Info("finish", "rir", rirName)
+				slog.Info("finish", "rir", rir.DbName)
 				wg.Done()
 			}()
-			rir := NewRir(rirName, p.config.RegistryFilePath)
-			err := rir.Update(p.database, "ip_ranges_a")
+			rirManager := NewRirManager(rir)
+			err := rirManager.Update(p.database, "ip_ranges_a")
 			if err != nil {
-				slog.Error("dowload rir", "rir", rirName, "error", err)
+				slog.Error("dowload rir", "rir", rir.DbName, "error", err)
 				return
 			}
 

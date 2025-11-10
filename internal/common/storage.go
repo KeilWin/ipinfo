@@ -1,5 +1,7 @@
 package common
 
+import "database/sql"
+
 const (
 	AIpRangesTable = "ip_ranges_a"
 	BIpRangesTable = "ip_ranges_b"
@@ -19,6 +21,7 @@ type IpRange struct {
 	VersionIp   int
 	StartIp     string
 	EndIp       string
+	Quantity    uint64
 	Status      int
-	CreatedAt   string
+	CreatedAt   sql.NullTime
 }

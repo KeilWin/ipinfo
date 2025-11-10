@@ -11,7 +11,7 @@ CREATE TABLE rirs (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 INSERT INTO rirs (name) 
-VALUES ('apnic'), ('arin'), ('iana'), ('lacnic'), ('ripencc');
+VALUES ('apnic'), ('arin'), ('afrinic'), ('lacnic'), ('ripencc');
 
 CREATE TABLE ip_versions (
     id SERIAL PRIMARY KEY,
@@ -27,7 +27,7 @@ CREATE TABLE ip_range_statuses (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 INSERT INTO ip_range_statuses (name)
-VALUES ('allocated'), ('assigned');
+VALUES ('allocated'), ('assigned'), ('available'), ('reserved'), ('unknown');
 
 CREATE TABLE ip_ranges_a (
     id SERIAL PRIMARY KEY,
@@ -36,8 +36,9 @@ CREATE TABLE ip_ranges_a (
     version_ip INT NOT NULL REFERENCES ip_versions(id) ON DELETE RESTRICT,
     start_ip INET NOT NULL,
     end_ip INET NOT NULL,
+    quantity INT NOT NULL,
     status INT NOT NULL REFERENCES ip_range_statuses(id) ON DELETE RESTRICT,
-    created_at DATE NOT NULL,
+    created_at DATE,
     updated_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(start_ip, end_ip)
 );
