@@ -79,7 +79,7 @@ func NewApp(appCfg *IpInfoAppConfig) *IpInfoApp {
 	utils.CheckAppFatalError(err)
 	cache, err := cache.NewCache(appCfg.Cache)
 	utils.CheckAppFatalError(err)
-	repository := dao.NewIpAddress(database)
+	repository := dao.NewIpAddressRepository(database)
 	handler := handler.NewAppHandler(appCfg.Handler, repository)
 	server := NewAppServer(handler, appCfg.Server)
 	return &IpInfoApp{

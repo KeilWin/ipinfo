@@ -6,14 +6,14 @@ import (
 )
 
 type IpAddressService interface {
-	GetIpAddress(ipAddress string) *entity.IpAddress
+	GetIpAddress(ipAddress string) (*entity.IpAddressInfo, error)
 }
 
 type IpAddress struct {
 	Repository dao.IpAddressRepository
 }
 
-func (p *IpAddress) GetIpAddress(ipAddress string) *entity.IpAddress {
+func (p *IpAddress) GetIpAddress(ipAddress string) (*entity.IpAddressInfo, error) {
 	return p.Repository.GetIpAddress(ipAddress)
 }
 

@@ -6,21 +6,35 @@ import (
 )
 
 type IpAddressRepository interface {
-	GetIpAddress(ipAddress string) *entity.IpAddress
+	GetIpAddress(ipAddress string) (*entity.IpAddressInfo, error)
 }
 
 type IpAddress struct {
 	Db database.Database
 }
 
-func (p *IpAddress) GetIpAddress(ipAddress string) *entity.IpAddress {
-	addr := p.Db.GetIpInfo(ipAddress)
-	return &entity.IpAddress{
-		Value: addr,
+func (p *IpAddress) GetIpAddress(ipAddress string) (*entity.IpAddressInfo, error) {
+	addr, err := p.Db.GetIpInfo(ipAddress)
+	if err != nil {
+		return nil, err
 	}
+	if addr == nil {
+		return nil, nil
+	}
+	return &entity.IpAddressInfo{
+		IpAddress:        ipAddress,
+		RirName:          addr.RirName,
+		IpAddressVersion: addr.IpAddressVersion,
+		CountryCode:      addr.CountryCode,
+		IpRangeStart:     addr.IpRangeStart,
+		IpRangeEnd:       addr.IpRangeEnd,
+		IpRangeQuantity:  addr.IpRangeQuantity,
+		Status:           addr.Status,
+		StatusUpdatedAt:  addr.StatusUpdatedAt,
+	}, nil
 }
 
-func NewIpAddress(db database.Database) *IpAddress {
+func NewIpAddressRepository(db database.Database) *IpAddress {
 	return &IpAddress{
 		Db: db,
 	}

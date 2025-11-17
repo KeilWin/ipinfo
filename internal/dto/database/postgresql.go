@@ -12,6 +12,18 @@ import (
 	_ "github.com/lib/pq"
 )
 
+type IpAddressInfoRow struct {
+	Id               string `json:"id"`
+	RirName          string `json:"rirName"`
+	CountryCode      string `json:"countryCode"`
+	IpAddressVersion string `json:"ipAddressVersion"`
+	IpRangeStart     string `json:"ipRangeStart"`
+	IpRangeEnd       string `json:"ipRangeEnd"`
+	IpRangeQuantity  string `json:"ipRangeQuantity"`
+	Status           string `json:"status"`
+	StatusUpdatedAt  string `json:"statusUpdatedAt"`
+}
+
 type PostgreSqlDatabase struct {
 	Database
 
@@ -48,8 +60,16 @@ func (p *PostgreSqlDatabase) ShutDown() error {
 	return p.Db.Close()
 }
 
-func (p *PostgreSqlDatabase) GetIpInfo(ipAddress string) string {
-	return "123.123.123.123"
+func (p *PostgreSqlDatabase) GetIpInfo(ipAddress string) (*IpAddressInfoRow, error) {
+	var ipInfoRow IpAddressInfoRow
+	err := p.Db.QueryRow("SELECT * FROM ip_ranges WHERE start_ip <= $1::inet AND end_ip > $2::inet LIMIT 1", ipAddress, ipAddress).Scan(&ipInfoRow)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ipInfoRow, nil
 }
 
 func (p *PostgreSqlDatabase) GetCurrentIpRangesName() (string, error) {
