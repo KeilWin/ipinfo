@@ -145,9 +145,7 @@ Some info from README
 ## Preferences
 
 Databases:
-- ClickHouse
 - PostgreSQL
 
 Cache:
 - Valkey
-- Redis
