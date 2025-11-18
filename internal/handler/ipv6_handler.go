@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 
@@ -24,6 +25,7 @@ func NewIpV6Handler(service service.IpAddressService) http.HandlerFunc {
 		}
 		ipAddressInfo, err := service.GetIpAddress(ipAddressFromPath)
 		if err != nil {
+			slog.Error("can't get ip address info", "err", err)
 			badResponse := NewInternalErrorResponse("can't get ip address info")
 			res, err := json.Marshal(badResponse)
 			if err != nil {

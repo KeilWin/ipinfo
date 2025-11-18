@@ -61,15 +61,25 @@ func (p *PostgreSqlDatabase) ShutDown() error {
 }
 
 func (p *PostgreSqlDatabase) GetIpInfo(ipAddress string) (*IpAddressInfoRow, error) {
-	var ipInfoRow IpAddressInfoRow
-	err := p.Db.QueryRow("SELECT * FROM ip_ranges WHERE start_ip <= '$1'::inet AND end_ip > '$2'::inet LIMIT 1", ipAddress, ipAddress).Scan(&ipInfoRow)
+	ipInfoRow := &IpAddressInfoRow{}
+	err := p.Db.QueryRow("SELECT * FROM ip_ranges WHERE start_ip <= $1::inet AND end_ip > $2::inet LIMIT 1", ipAddress, ipAddress).Scan(
+		&ipInfoRow.Id,
+		&ipInfoRow.RirName,
+		&ipInfoRow.CountryCode,
+		&ipInfoRow.IpAddressVersion,
+		&ipInfoRow.IpRangeStart,
+		&ipInfoRow.IpRangeEnd,
+		&ipInfoRow.IpRangeQuantity,
+		&ipInfoRow.Status,
+		&ipInfoRow.StatusUpdatedAt,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &ipInfoRow, nil
+	return ipInfoRow, nil
 }
 
 func (p *PostgreSqlDatabase) UpdateOption(name, value string, ctx context.Context) error {
