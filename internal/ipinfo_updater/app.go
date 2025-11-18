@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -47,6 +48,9 @@ func (p *IpInfoUpdaterApp) ShutDownHandler() {
 }
 
 func (p *IpInfoUpdaterApp) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if err := p.database.StartUp(); err != nil {
 		return err
 	}
@@ -54,34 +58,9 @@ func (p *IpInfoUpdaterApp) Start() error {
 		p.database.ShutDown()
 		return err
 	}
-
 	go p.ShutDownHandler()
 
-	return func() error {
-		for {
-			if err := p.Update(); err != nil {
-				return err
-			}
-			time.Sleep(100 * time.Minute)
-			slog.Info("successfuly updated")
-		}
-	}()
-}
-
-func (p *IpInfoUpdaterApp) Update() error {
 	var wg sync.WaitGroup
-
-	// var tableName string
-	// existsTableName, err := p.database.GetCurrentIpRangesName()
-	// if err != nil {
-	// 	return err
-	// }
-	// if existsTableName == common.AIpRangesTable {
-	// 	tableName = common.BIpRangesTable
-	// } else {
-	// 	tableName = common.AIpRangesTable
-	// }
-
 	wg.Add(len(Rirs))
 	for _, rir := range Rirs {
 		go func() {
@@ -89,19 +68,28 @@ func (p *IpInfoUpdaterApp) Update() error {
 				slog.Info("finish", "rir", rir.DbName)
 				wg.Done()
 			}()
-			rirManager := NewRirManager(rir)
-			err := rirManager.Update(p.database, "ip_ranges_a")
-			if err != nil {
-				slog.Error("dowload rir", "rir", rir.DbName, "error", err)
-				return
-			}
-
+			rirManager := NewRirManager(rir, p.database, ctx, time.Date(0, 0, 0, 4, 0, 0, 0, time.UTC))
+			workLoop := NewWorkLoop(rirManager, 30*time.Minute)
+			workLoop()
 		}()
 	}
-
 	wg.Wait()
 
 	return nil
+}
+
+func NewWorkLoop(rirManager *RirManager, retryPause time.Duration) func() {
+	return func() {
+		slog.Info("start workloop", "rir", rirManager.Rir.DbName)
+		for {
+			err := rirManager.Start()
+			if err != nil {
+				slog.Error("update rir", "rir", rirManager.Rir.DbName, "error", err, "retry_after(minutes)", retryPause.Minutes())
+				time.Sleep(retryPause)
+				continue
+			}
+		}
+	}
 }
 
 func NewApp(cfg *IpInfoUpdaterConfig) *IpInfoUpdaterApp {

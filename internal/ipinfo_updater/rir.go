@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -67,27 +68,8 @@ var Statuses = [4]string{
 
 const UnknownStatus = 5
 
-func newDownloadUrl(domain, pathName, fileName string) string {
-	return fmt.Sprintf("https://ftp.%s.net/pub/stats/%s/delegated-%s-latest", domain, pathName, fileName)
-}
-
-type RirManager struct {
-	rir          *Rir
-	downloadUrl  string
-	downloadPath string
-}
-
-func (p *RirManager) Update(db database.Database, tableName string) error {
-	data, err := p.Download()
-	if err != nil {
-		return fmt.Errorf("download: %w", err)
-	}
-
-	err = p.Upload(db, tableName, data)
-	if err != nil {
-		return fmt.Errorf("update: %w", err)
-	}
-	return nil
+func newDownloadUrl(rir *Rir) string {
+	return fmt.Sprintf("https://ftp.%s.net/pub/stats/%s/delegated-%s-latest", rir.Domain, rir.PathName, rir.FileName)
 }
 
 func NewEndRangeIpAddressV4(addrStart netip.Addr, quantity uint32) *netip.Addr {
@@ -120,30 +102,86 @@ func NewEndRangeIpAddressV6(addrStart netip.Addr, quantity uint64) (*netip.Addr,
 	return &addrEnd, nil
 }
 
-func (p *RirManager) Download() ([]common.IpRange, error) {
-	slog.Info("starting download", "rir", p.rir.DbName, "url", p.downloadUrl)
-	cli := http.Client{
-		Timeout: 600 * time.Second,
+type RirManager struct {
+	Rir          *Rir
+	db           database.Database
+	ctx          context.Context
+	timeToUpdate time.Time
+}
+
+func (p *RirManager) GetLastUpdate() (*time.Time, error) {
+	var lastUpdateDateTime time.Time
+	lastUpdateOption, err := p.db.GetOption(fmt.Sprintf("lastUpdate%s", p.Rir.DbName), p.ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		lastUpdateDateTime = time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC)
+	} else if err != nil {
+		return nil, fmt.Errorf("get option 'lastUpdate': %w", err)
+	} else {
+		lastUpdateDateTime, err = time.ParseInLocation("2006-01-02 15:04:05", lastUpdateOption, time.UTC)
+		if err != nil {
+			return nil, fmt.Errorf("parse option 'lastUpdate': %w", err)
+		}
 	}
-	response, err := cli.Get(p.downloadUrl)
+	return &lastUpdateDateTime, nil
+}
+
+func (p *RirManager) RefreshLastUpdate() (time.Time, error) {
+	now := time.Now().UTC()
+	return now, p.db.UpdateOption(fmt.Sprintf("lastUpdate%s", p.Rir.DbName), now.Format("2006-01-02 15:04:05"), p.ctx)
+
+}
+
+func (p *RirManager) Start() error {
+	slog.Info("rir manager started", "rir", p.Rir.DbName)
+	lastUpdate, err := p.GetLastUpdate()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("lastUpdate: %w", err)
 	}
-	defer response.Body.Close()
+	slog.Info("get lastUpdate ok", "lastUpdate", lastUpdate.Format("2006-01-02 15:04:05"))
 
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status code: %s", response.Status)
+	now := time.Now().UTC()
+	if now.Sub(*lastUpdate).Hours() >= 24 {
+		slog.Info("updating", "rir", p.Rir.DbName)
+		data, err := p.Download()
+		if err != nil {
+			return fmt.Errorf("download: %w", err)
+		}
+
+		rows, err := p.ParseData(data)
+		if err != nil {
+			return fmt.Errorf("parse data: %w", err)
+		}
+
+		err = p.Upload(rows)
+		if err != nil {
+			return fmt.Errorf("update: %w", err)
+		}
+
+		nowDt, err := p.RefreshLastUpdate()
+		if err != nil {
+			return fmt.Errorf("refresh lastUpdate: %w", err)
+		}
+
+		slog.Info("successful update", "rir", p.Rir.DbName)
+		time.Sleep(time.Until(time.Date(nowDt.Year(), nowDt.Month(), nowDt.Day(), p.timeToUpdate.Hour(), p.timeToUpdate.Minute(), p.timeToUpdate.Second()+5, p.timeToUpdate.Nanosecond(), time.UTC).Add(24 * time.Hour)))
+	} else {
+		slog.Info("wake up too early", "rir", p.Rir.DbName)
+		time.Sleep(now.Sub(*lastUpdate) + 5*time.Second)
 	}
 
-	reader := bufio.NewReaderSize(response.Body, 1<<20)
+	return nil
+}
 
+func (p *RirManager) ParseHeader(reader *bufio.Reader) error {
+	var err error
 	var line string
+
 	for {
 		line, err = reader.ReadString('\n')
 		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
-			return nil, err
+			return err
 		}
 		line = strings.TrimSpace(line)
 		if line == "" || line[0] == '#' {
@@ -157,13 +195,22 @@ func (p *RirManager) Download() ([]common.IpRange, error) {
 		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
-			return nil, err
+			return err
 		}
 	}
+	return nil
+}
 
-	slog.Info("start readind")
-	ipRanges := make([]common.IpRange, 0, 5000)
+func (p *RirManager) ParseData(data io.ReadCloser) ([]common.IpRange, error) {
+	var err error
+	var line string
 
+	reader := bufio.NewReaderSize(data, 1<<20)
+	if err = p.ParseHeader(reader); err != nil {
+		return nil, fmt.Errorf("parse header: %w", err)
+	}
+
+	ipRanges := make([]common.IpRange, 0, 10000)
 	for {
 		line, err = reader.ReadString('\n')
 		if errors.Is(err, io.EOF) {
@@ -178,14 +225,15 @@ func (p *RirManager) Download() ([]common.IpRange, error) {
 
 		valArray := strings.Split(line, "|")
 
+		if valArray[2] == "asn" {
+			continue
+		}
+
 		rirId := FindRirByDbName(valArray[0])
 		if rirId == -1 {
 			return nil, fmt.Errorf("can't parse rirId from line: %s", line)
 		}
 
-		if valArray[2] == "asn" {
-			continue
-		}
 		versionIpId := slices.Index(IpVersions[:], valArray[2])
 		if versionIpId == -1 {
 			return nil, fmt.Errorf("can't parse versionIpId = '%s' from line: %s", valArray[2], line)
@@ -213,15 +261,15 @@ func (p *RirManager) Download() ([]common.IpRange, error) {
 			return nil, fmt.Errorf("unknown ip format = '%s' from line: %s", addrStart.String(), line)
 		}
 
-		var createdAt sql.NullTime
+		var statusChangedAt sql.NullTime
 		if valArray[5] == "" {
-			createdAt = sql.NullTime{Valid: false}
+			statusChangedAt = sql.NullTime{Valid: false}
 		} else {
 			date, err := time.Parse("20060102", valArray[5])
 			if err != nil {
 				return nil, fmt.Errorf("can't parse date = '%s' from line: %s", valArray[5], line)
 			}
-			createdAt = sql.NullTime{Time: date, Valid: true}
+			statusChangedAt = sql.NullTime{Time: date, Valid: true}
 		}
 
 		statusId := slices.Index(Statuses[:], valArray[6])
@@ -231,27 +279,45 @@ func (p *RirManager) Download() ([]common.IpRange, error) {
 		}
 
 		ipRanges = append(ipRanges, common.IpRange{
-			Rir:         rirId + 1,
-			CountryCode: valArray[1],
-			VersionIp:   versionIpId + 1,
-			StartIp:     valArray[3],
-			EndIp:       addrEnd.String(),
-			Quantity:    quantity,
-			Status:      statusId + 1,
-			CreatedAt:   createdAt,
+			RirId:           rirId + 1,
+			CountryCode:     valArray[1],
+			IpVersionId:     versionIpId + 1,
+			StartIp:         valArray[3],
+			EndIp:           addrEnd.String(),
+			Quantity:        quantity,
+			StatusId:        statusId + 1,
+			StatusChangedAt: statusChangedAt,
 		})
 	}
 
 	return ipRanges, nil
 }
 
-func (p *RirManager) Upload(db database.Database, tableName string, data []common.IpRange) error {
-	return db.CopyToIpRangesFromArray(tableName, data)
+func (p *RirManager) Download() (io.ReadCloser, error) {
+	cli := http.Client{
+		Timeout: 600 * time.Second,
+	}
+	response, err := cli.Get(newDownloadUrl(p.Rir))
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad status code: %s", response.Status)
+	}
+
+	return response.Body, nil
 }
 
-func NewRirManager(rir *Rir) *RirManager {
+func (p *RirManager) Upload(data []common.IpRange) error {
+	return p.db.UpdateRirData(p.Rir.DbName, data, p.ctx)
+}
+
+func NewRirManager(rir *Rir, db database.Database, ctx context.Context, timeToUpdate time.Time) *RirManager {
 	return &RirManager{
-		rir:         rir,
-		downloadUrl: newDownloadUrl(rir.Domain, rir.PathName, rir.FileName),
+		Rir:          rir,
+		db:           db,
+		ctx:          ctx,
+		timeToUpdate: timeToUpdate,
 	}
 }
