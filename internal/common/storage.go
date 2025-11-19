@@ -1,24 +1,26 @@
 package common
 
-const (
-	AIpRangesTable = "ip_ranges_a"
-	BIpRangesTable = "ip_ranges_b"
+import (
+	"context"
+	"database/sql"
 )
 
 type Storage interface {
 	StartUp() error
 	ShutDown() error
 
-	GetCurrentIpRangesName() (string, error)
-	CopyToIpRangesFromArray(table string, ip_ranges []IpRange) error
+	UpdateOption(name, value string, ctx context.Context) error
+	GetOption(name string, ctx context.Context) (string, error)
+	UpdateRirData(rirTableName string, ip_ranges []IpRange, ctx context.Context) error
 }
 
 type IpRange struct {
-	Rir         int
-	CountryCode string
-	VersionIp   int
-	StartIp     string
-	EndIp       string
-	Status      int
-	CreatedAt   string
+	RirId           int
+	CountryCode     string
+	IpVersionId     int
+	StartIp         string
+	EndIp           string
+	Quantity        uint64
+	StatusId        int
+	StatusChangedAt sql.NullTime
 }

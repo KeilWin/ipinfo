@@ -10,7 +10,7 @@ import (
 type Database interface {
 	common.Storage
 
-	GetIpInfo(ipAddress string) string
+	GetIpInfo(ipAddress string) (*IpAddressInfoRow, error)
 }
 
 func NewDatabase(databaseConfig *DatabaseConfig) (Database, error) {

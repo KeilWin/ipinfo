@@ -1,38 +1,17 @@
 package entity
 
-type IpAddressVersionType string
-type RirType string
-type StatusType string
-
-const (
-	IpAddressV4 IpAddressVersionType = "ipv4"
-	IpAddressV6 IpAddressVersionType = "ipv6"
-)
-
-const (
-	Apnic   RirType = "apnic"
-	Arin    RirType = "arin"
-	Iana    RirType = "iana"
-	Lacnic  RirType = "lacnic"
-	Ripencc RirType = "ripencc"
-)
-
-const (
-	Allocated StatusType = "allocated"
-	Assigned  StatusType = "assigned"
-)
-
-type IpAddress struct {
-	Rir     RirType
-	Country string
-	Value   string
-	Start   string
-	Count   string
-	Version IpAddressVersionType
-	Date    string
-	Status  StatusType
+type IpAddressInfo struct {
+	IpAddress        string `json:"ipAddress"`
+	RirName          string `json:"rirName"`
+	IpAddressVersion string `json:"ipAddressVersion"`
+	CountryCode      string `json:"countryCode"`
+	IpRangeStart     string `json:"ipRangeStart"`
+	IpRangeEnd       string `json:"ipRangeEnd"`
+	IpRangeQuantity  string `json:"ipRangeQuantity"`
+	Status           string `json:"status"`
+	StatusUpdatedAt  string `json:"statusUpdatedAt"`
 }
 
-func NewIpAddress() *IpAddress {
-	return &IpAddress{}
+func NewIpAddressInfo() *IpAddressInfo {
+	return &IpAddressInfo{}
 }

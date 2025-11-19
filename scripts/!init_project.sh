@@ -15,5 +15,8 @@ openssl req -x509 -out bin/ssl/$PROJECT_NAME.crt -keyout bin/ssl/$PROJECT_NAME.k
   -subj '/CN=localhost' -extensions EXT -config <( \
    printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
 
+cp configs/$PROJECT_NAME.env.example configs/$PROJECT_NAME.env
+cp configs/$UPDATER_NAME.env.example configs/$UPDATER_NAME.env
+
 cp configs/$PROJECT_NAME.env.example bin/configs/$PROJECT_NAME.env
 cp configs/$UPDATER_NAME.env.example bin/configs/$UPDATER_NAME.env

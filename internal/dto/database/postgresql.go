@@ -1,8 +1,8 @@
 package database
 
 import (
+	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -11,6 +11,18 @@ import (
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
+
+type IpAddressInfoRow struct {
+	Id               string `json:"id"`
+	RirName          string `json:"rirName"`
+	CountryCode      string `json:"countryCode"`
+	IpAddressVersion string `json:"ipAddressVersion"`
+	IpRangeStart     string `json:"ipRangeStart"`
+	IpRangeEnd       string `json:"ipRangeEnd"`
+	IpRangeQuantity  string `json:"ipRangeQuantity"`
+	Status           string `json:"status"`
+	StatusUpdatedAt  string `json:"statusUpdatedAt"`
+}
 
 type PostgreSqlDatabase struct {
 	Database
@@ -48,62 +60,72 @@ func (p *PostgreSqlDatabase) ShutDown() error {
 	return p.Db.Close()
 }
 
-func (p *PostgreSqlDatabase) GetIpInfo(ipAddress string) string {
-	return "123.123.123.123"
+func (p *PostgreSqlDatabase) GetIpInfo(ipAddress string) (*IpAddressInfoRow, error) {
+	ipInfoRow := &IpAddressInfoRow{}
+	err := p.Db.QueryRow("SELECT * FROM ip_ranges WHERE start_ip <= $1::inet AND end_ip > $2::inet LIMIT 1", ipAddress, ipAddress).Scan(
+		&ipInfoRow.Id,
+		&ipInfoRow.RirName,
+		&ipInfoRow.CountryCode,
+		&ipInfoRow.IpAddressVersion,
+		&ipInfoRow.IpRangeStart,
+		&ipInfoRow.IpRangeEnd,
+		&ipInfoRow.IpRangeQuantity,
+		&ipInfoRow.Status,
+		&ipInfoRow.StatusUpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return ipInfoRow, nil
 }
 
-func (p *PostgreSqlDatabase) GetCurrentIpRangesName() (string, error) {
-	var aExists, bExists bool
-	err := p.Db.QueryRow(`SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = '$1'
-        );`, common.AIpRangesTable).Scan(&aExists)
+func (p *PostgreSqlDatabase) UpdateOption(name, value string, ctx context.Context) error {
+	_, err := p.Db.ExecContext(ctx, `INSERT INTO options (name, value) VALUES ($1, $2) 
+	ON CONFLICT (name) DO 
+	UPDATE SET value = EXCLUDED.value;`, name, value)
 	if err != nil {
-		return "", nil
+		return fmt.Errorf("insert with on conflict: %w", err)
 	}
-	err = p.Db.QueryRow(`SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = '$1'
-        )`, common.BIpRangesTable).Scan(&bExists)
-	if err != nil {
-		return "", nil
-	}
-
-	if aExists && bExists {
-		return "", errors.New("two ip_range tables exists")
-	} else if !aExists && !bExists {
-		return "", errors.New("no one ip_range tables exists")
-	}
-
-	if aExists {
-		return common.AIpRangesTable, nil
-	}
-	return common.BIpRangesTable, nil
+	return nil
 }
 
-func (p *PostgreSqlDatabase) CopyToIpRangesFromArray(table string, ip_ranges []common.IpRange) error {
-	slog.Info("start copy to database", "table", table, "quantity", len(ip_ranges))
-	tx, err := p.Db.Begin()
+func (p *PostgreSqlDatabase) GetOption(name string, ctx context.Context) (string, error) {
+	var result string
+	err := p.Db.QueryRowContext(ctx, "SELECT value FROM options WHERE name=$1 LIMIT 1", name).Scan(&result)
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return "", err
+	}
+	return result, nil
+}
+
+func (p *PostgreSqlDatabase) UpdateRirData(rirTableName string, ip_ranges []common.IpRange, ctx context.Context) error {
+	tx, err := p.Db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(pq.CopyIn(table, "rir", "country_code", "version_ip", "start_ip", "end_ip", "status", "created_at"))
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY", rirTableName))
 	if err != nil {
-		return fmt.Errorf("prepare: %w", err)
+		return fmt.Errorf("truncate: %w", err)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, pq.CopyIn(rirTableName, "country_code", "ip_version_id", "start_ip", "end_ip", "quantity", "status_id", "status_changed_at"))
+	if err != nil {
+		return fmt.Errorf("stmt open: %w", err)
 	}
 
 	for i, ip_range := range ip_ranges {
-		_, err = stmt.Exec(ip_range.Rir, ip_range.CountryCode, ip_range.VersionIp, ip_range.StartIp, ip_range.EndIp, ip_range.Status, ip_range.CreatedAt)
+		_, err = stmt.ExecContext(ctx, ip_range.CountryCode, ip_range.IpVersionId, ip_range.StartIp, ip_range.EndIp, ip_range.Quantity, ip_range.StatusId, ip_range.StatusChangedAt)
 		if err != nil {
 			return fmt.Errorf("exec[%d] = '%v': %w", i, ip_range, err)
 		}
 	}
 
-	if _, err = stmt.Exec(); err != nil {
+	if _, err = stmt.ExecContext(ctx); err != nil {
 		return fmt.Errorf("finish copy: %w", err)
 	}
 
@@ -112,9 +134,13 @@ func (p *PostgreSqlDatabase) CopyToIpRangesFromArray(table string, ip_ranges []c
 	}
 
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("commit: %w", err)
+		return err
 	}
 
+	_, err = p.Db.ExecContext(ctx, "REFRESH MATERIALIZED VIEW ip_ranges;")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
