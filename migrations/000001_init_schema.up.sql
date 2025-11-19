@@ -10,7 +10,7 @@ CREATE TABLE rirs (
     name TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT NOW()
 );
-INSERT INTO rirs (name) 
+INSERT INTO rirs (name)
 VALUES ('apnic'), ('arin'), ('afrinic'), ('lacnic'), ('ripencc');
 
 CREATE TABLE ip_versions (

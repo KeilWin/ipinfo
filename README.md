@@ -61,8 +61,10 @@ Map of RIRs areas
 
 ## Preferences
 
+
 Databases:
 - PostgreSQL
+
 
 Cache:
 - Valkey
