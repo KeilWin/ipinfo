@@ -18,13 +18,14 @@ make build-ipinfo
 make build-ipinfo-updater
 
 // Run ipinfo app
-run-ipinfo
+make run-ipinfo
 
 // Run ipinfo_updater app
-run-ipinfo-updater
+make run-ipinfo-updater
 ```
 
 ## Migrations
+For migrations using golang-migrate
 ```
 // Up database migration
 migrate -path migrations -database <database>://<user>:<password>@<host>:<port>/<database_name> up
